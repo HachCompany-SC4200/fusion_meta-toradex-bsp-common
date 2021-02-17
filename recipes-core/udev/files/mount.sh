@@ -44,7 +44,6 @@ automount() {
 		rm_dir "/media/$name"
 	else
 		logger "mount.sh/automount" "Auto-mount of [/media/$name] successful"
-		touch "/tmp/.automount-$name"
 	fi
 }
 	
@@ -79,12 +78,11 @@ fi
 
 
 if [ "$ACTION" = "remove" ] || [ "$ACTION" = "change" ] && [ -x "$UMOUNT" ] && [ -n "$DEVNAME" ]; then
-	for mnt in `cat /proc/mounts | grep "$DEVNAME" | cut -f 2 -d " " `
+	for mnt in `cat /proc/mounts | grep "$DEVNAME" | cut -f 2 -d " "`
 	do
-		$UMOUNT $mnt
+		# Before unmounting, kill all processes accessing to the mount point
+		# After a successful unmount, remove the mount point folder
+		fuser -km $mnt && sleep 1
+		$UMOUNT $mnt && (rm -rf $mnt && logger "$mnt successfully unmounted and removed") || logger "unable to unmount $mnt"
 	done
-	
-	# Remove empty directories from auto-mounter
-	name="`basename "$DEVNAME"`"
-	test -e "/tmp/.automount-$name" && rm_dir "/media/$name"
 fi
